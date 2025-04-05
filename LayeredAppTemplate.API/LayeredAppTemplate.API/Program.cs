@@ -7,6 +7,7 @@ using LayeredAppTemplate.Application.Validators.UserValidators;
 using LayeredAppTemplate.Infrastructure;
 using LayeredAppTemplate.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -139,6 +140,18 @@ builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounte
 builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
 builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
 
+// ------------------------------------------
+// Health Checks Configuration
+// ------------------------------------------
+builder.Services.AddHealthChecks()
+    .AddSqlServer(connectionString);
+
+// Health Checks UI Configuration
+builder.Services.AddHealthChecksUI(setupSettings: setup =>
+{
+    setup.SetEvaluationTimeInSeconds(60); // Her 60 saniyede bir kontrol
+}).AddInMemoryStorage();
+
 var app = builder.Build();
 
 // Global Exception Handling middleware
@@ -167,6 +180,32 @@ app.UseHttpsRedirection();
 
 // Rate Limiting middleware ekle
 app.UseIpRateLimiting();
+
+// Health Checks endpoint'ini ekle (örneðin /health)
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        var response = new
+        {
+            status = report.Status.ToString(),
+            results = report.Entries.Select(e => new
+            {
+                key = e.Key,
+                status = e.Value.Status.ToString(),
+                description = e.Value.Description
+            })
+        };
+        await context.Response.WriteAsJsonAsync(response);
+    }
+});
+
+// Health Checks UI endpoint (örneðin /health-ui)
+app.MapHealthChecksUI(options =>
+{
+    options.UIPath = "/health-ui";
+});
 
 app.UseAuthentication();
 app.UseAuthorization();
