@@ -1,6 +1,7 @@
+using LayeredAppTemplate.API.Middlewares;
 using LayeredAppTemplate.Infrastructure;
 using LayeredAppTemplate.Persistence;
-
+using Serilog;
 using System.Globalization;
 
 CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
@@ -8,9 +9,22 @@ CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Serilog yapýlandýrmasý
+Log.Logger = new LoggerConfiguration()
+    .Enrich.FromLogContext()
+    .MinimumLevel.Debug()
+    .WriteTo.Console()
+    .WriteTo.File(
+         "logs/log.txt",
+         rollingInterval: RollingInterval.Day,
+         outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .CreateLogger();
+
+// Uygulamanýn hostunu Serilog ile entegre ediyoruz
+builder.Host.UseSerilog();
+
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-// Önce tüm baðýmlýlýklarý ekleyelim (AppDbContext dahil)
 builder.Services.AddApplicationDependencies(connectionString);
 
 // Add services to the container.
@@ -20,7 +34,8 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// DbContext'i kontrol etmek için scope oluþturuyoruz
+app.UseGlobalExceptionHandler();
+
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();

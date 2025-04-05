@@ -2,7 +2,7 @@
 using LayeredAppTemplate.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
-namespace LayeredAppTemplate.API
+namespace LayeredAppTemplate.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
