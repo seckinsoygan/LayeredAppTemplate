@@ -1,29 +1,46 @@
 using FluentValidation.AspNetCore;
+using LayeredAppTemplate.API.Configuration;
 using LayeredAppTemplate.API.Middlewares;
 using LayeredAppTemplate.Application.DTOs;
 using LayeredAppTemplate.Application.Validators.UserValidators;
 using LayeredAppTemplate.Infrastructure;
 using LayeredAppTemplate.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
+using Swashbuckle.AspNetCore.SwaggerGen;
 using System.Globalization;
 using System.Text;
 
+// Kültürü invariant olarak ayarla
 CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
 CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ------------------------------------------
+// API Versioning
+// ------------------------------------------
+builder.Services.AddApiVersioning(options =>
+{
+    options.DefaultApiVersion = new ApiVersion(1, 0);
+    options.AssumeDefaultVersionWhenUnspecified = true;
+    options.ReportApiVersions = true;
+});
+builder.Services.AddVersionedApiExplorer(options =>
+{
+    options.GroupNameFormat = "'v'VVV";
+    options.SubstituteApiVersionInUrl = true;
+});
+
+// ------------------------------------------
+// Swagger Configuration with JWT and Versioning
+// ------------------------------------------
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new OpenApiInfo
-    {
-        Title = "LayeredAppTemplate API",
-        Version = "v1"
-    });
-
     // JWT Bearer Security Tanýmlamasý
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -52,9 +69,12 @@ builder.Services.AddSwaggerGen(options =>
         }
     });
 });
+// Swagger versiyonlama için özel yapýlandýrma sýnýfýný ekle
+builder.Services.AddTransient<IConfigureOptions<SwaggerGenOptions>, ConfigureSwaggerOptions>();
 
-
-// Serilog yapýlandýrmasý
+// ------------------------------------------
+// Serilog Configuration
+// ------------------------------------------
 Log.Logger = new LoggerConfiguration()
     .Enrich.FromLogContext()
     .MinimumLevel.Debug()
@@ -64,17 +84,16 @@ Log.Logger = new LoggerConfiguration()
          rollingInterval: RollingInterval.Day,
          outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
     .CreateLogger();
-
-// Uygulamanýn hostunu Serilog ile entegre ediyoruz
 builder.Host.UseSerilog();
 
-// JWT ayarlarýný yapýlandýrma
+// ------------------------------------------
+// JWT Authentication Configuration
+// ------------------------------------------
 var jwtSection = builder.Configuration.GetSection("Jwt");
 builder.Services.Configure<JwtSettings>(jwtSection);
 var jwtSettings = jwtSection.Get<JwtSettings>();
 var key = Encoding.ASCII.GetBytes(jwtSettings.Key);
 
-// Authentication servisini ekle
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -95,23 +114,25 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+// ------------------------------------------
+// Dependency Injection and Application Services
+// ------------------------------------------
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
 builder.Services.AddApplicationDependencies(connectionString);
 
-// Controller'larý FluentValidation ile ekleyelim
+// ------------------------------------------
+// Controllers and FluentValidation
+// ------------------------------------------
 builder.Services.AddControllers()
     .AddFluentValidation(fv => fv.RegisterValidatorsFromAssemblyContaining<CreateUserDtoValidator>());
-
-// Add services to the container.
-builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// Global Exception Handling middleware (tüm hatalarý merkezi yakalamak için)
 app.UseGlobalExceptionHandler();
 
+// Veritabaný baðlantýsýný kontrol et
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -121,7 +142,9 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// Configure the HTTP request pipeline.
+// ------------------------------------------
+// Middleware Pipeline Configuration
+// ------------------------------------------
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -129,6 +152,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
 app.Run();

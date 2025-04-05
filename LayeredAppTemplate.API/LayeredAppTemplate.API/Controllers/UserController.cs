@@ -5,24 +5,21 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace LayeredAppTemplate.API.Controllers
 {
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/[controller]")]
     [ApiController]
-    [Route("api/[controller]")]
     [Authorize]
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
-
         public UserController(IUserService userService)
         {
             _userService = userService;
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
-        {
-            var users = await _userService.GetAllAsync();
-            return Ok(users);
-        }
+        public async Task<IActionResult> GetAll() =>
+            Ok(await _userService.GetAllAsync());
 
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetById(Guid id)
@@ -36,7 +33,6 @@ namespace LayeredAppTemplate.API.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateUserDto dto)
         {
-            // [ApiController] sayesinde ModelState otomatik kontrol edilir.
             var newUserId = await _userService.CreateAsync(dto);
             return CreatedAtAction(nameof(GetById), new { id = newUserId }, dto);
         }
