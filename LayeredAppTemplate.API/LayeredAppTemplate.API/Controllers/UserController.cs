@@ -16,32 +16,40 @@ namespace LayeredAppTemplate.API.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Get() =>
-            Ok(await _userService.GetAllAsync());
+        public async Task<IActionResult> GetAll()
+        {
+            var users = await _userService.GetAllAsync();
+            return Ok(users);
+        }
 
-        [HttpGet("{id}")]
+        [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetById(Guid id)
         {
             var user = await _userService.GetByIdAsync(id);
-            if (user == null) return NotFound();
+            if (user == null)
+                return NotFound();
             return Ok(user);
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] UserDto dto)
+        public async Task<IActionResult> Create([FromBody] CreateUserDto dto)
         {
-            var id = await _userService.CreateAsync(dto);
-            return CreatedAtAction(nameof(GetById), new { id }, dto);
+            // [ApiController] sayesinde ModelState otomatik kontrol edilir.
+            var newUserId = await _userService.CreateAsync(dto);
+            return CreatedAtAction(nameof(GetById), new { id = newUserId }, dto);
         }
 
-        [HttpPut]
-        public async Task<IActionResult> Update([FromBody] UserDto dto)
+        [HttpPut("{id:guid}")]
+        public async Task<IActionResult> Update(Guid id, [FromBody] UpdateUserDto dto)
         {
+            if (id != dto.Id)
+                return BadRequest("URL'deki id ile gönderilen id uyuşmuyor.");
+
             var result = await _userService.UpdateAsync(dto);
             return result ? NoContent() : NotFound();
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("{id:guid}")]
         public async Task<IActionResult> Delete(Guid id)
         {
             var result = await _userService.DeleteAsync(id);

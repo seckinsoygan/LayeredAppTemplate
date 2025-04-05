@@ -1,4 +1,6 @@
+using FluentValidation.AspNetCore;
 using LayeredAppTemplate.API.Middlewares;
+using LayeredAppTemplate.Application.Validators.UserValidators;
 using LayeredAppTemplate.Infrastructure;
 using LayeredAppTemplate.Persistence;
 using Serilog;
@@ -26,6 +28,10 @@ builder.Host.UseSerilog();
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
 builder.Services.AddApplicationDependencies(connectionString);
+
+// Controller'larý FluentValidation ile ekleyelim
+builder.Services.AddControllers()
+    .AddFluentValidation(fv => fv.RegisterValidatorsFromAssemblyContaining<CreateUserDtoValidator>());
 
 // Add services to the container.
 builder.Services.AddControllers();

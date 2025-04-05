@@ -6,7 +6,7 @@ using LayeredAppTemplate.Domain.Entities;
 
 namespace LayeredAppTemplate.Application.Services
 {
-    public class UserService : GenericService<UserDto, User>, IUserService
+    public class UserService : GenericService<UserDto, User, CreateUserDto, UpdateUserDto>, IUserService
     {
         public UserService(IRepository<User> repository, IMapper mapper)
             : base(repository, mapper) { }
