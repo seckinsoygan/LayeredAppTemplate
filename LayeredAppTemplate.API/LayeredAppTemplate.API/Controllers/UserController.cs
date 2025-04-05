@@ -1,11 +1,13 @@
 ﻿using LayeredAppTemplate.Application.DTOs.User;
 using LayeredAppTemplate.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LayeredAppTemplate.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
