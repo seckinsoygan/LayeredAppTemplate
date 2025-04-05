@@ -8,29 +8,58 @@ namespace LayeredAppTemplate.Application.Services
     {
         protected readonly IRepository<TEntity> _repository;
         protected readonly IMapper _mapper;
+        protected readonly ICacheService _cacheService;
 
-        public GenericService(IRepository<TEntity> repository, IMapper mapper)
+        public GenericService(IRepository<TEntity> repository, IMapper mapper, ICacheService cacheService)
         {
             _repository = repository;
             _mapper = mapper;
+            _cacheService = cacheService;
         }
 
-        public async Task<List<TDto>> GetAllAsync()
+        // Cache key oluştururken, entity tipinin adını kullanıyoruz.
+        protected virtual string GetCacheKeyForList() => $"{typeof(TEntity).Name}_List";
+        protected virtual string GetCacheKeyForItem(Guid id) => $"{typeof(TEntity).Name}_Id_{id}";
+
+        public async virtual Task<List<TDto>> GetAllAsync()
         {
+            var cacheKey = GetCacheKeyForList();
+            var cachedList = await _cacheService.GetAsync<List<TDto>>(cacheKey);
+            if (cachedList != null)
+            {
+                return cachedList;
+            }
+
             var entities = await _repository.GetAllAsync();
-            return _mapper.Map<List<TDto>>(entities);
+            var result = _mapper.Map<List<TDto>>(entities);
+
+            // Cache'de 5 dakika süreyle saklayalım.
+            await _cacheService.SetAsync(cacheKey, result, TimeSpan.FromMinutes(5));
+            return result;
         }
 
-        public async Task<TDto?> GetByIdAsync(Guid id)
+        public async virtual Task<TDto?> GetByIdAsync(Guid id)
         {
+            var cacheKey = GetCacheKeyForItem(id);
+            var cachedItem = await _cacheService.GetAsync<TDto>(cacheKey);
+            if (cachedItem != null)
+            {
+                return cachedItem;
+            }
+
             var entity = await _repository.GetByIdAsync(id);
-            return _mapper.Map<TDto>(entity);
+            var result = _mapper.Map<TDto>(entity);
+            if (result != null)
+            {
+                await _cacheService.SetAsync(cacheKey, result, TimeSpan.FromMinutes(5));
+            }
+            return result;
         }
 
-        public async Task<Guid> CreateAsync(TCreateDto dto)
+        public async virtual Task<Guid> CreateAsync(TCreateDto dto)
         {
             var entity = _mapper.Map<TEntity>(dto);
-            // Eğer entity'de Id property varsa, ona yeni bir Guid atayabiliriz.
+            // Eğer entity'de Id property varsa, ona yeni bir Guid atayalım.
             var idProperty = typeof(TEntity).GetProperty("Id");
             if (idProperty != null && idProperty.PropertyType == typeof(Guid))
             {
@@ -38,25 +67,39 @@ namespace LayeredAppTemplate.Application.Services
             }
             await _repository.AddAsync(entity);
             await _repository.SaveChangesAsync();
+
+            // Cache'leri temizlemek iyi bir uygulamadır:
+            await _cacheService.RemoveAsync(GetCacheKeyForList());
             return (Guid)(idProperty?.GetValue(entity) ?? Guid.Empty);
         }
 
-        public async Task<bool> UpdateAsync(TUpdateDto dto)
+        public async virtual Task<bool> UpdateAsync(TUpdateDto dto)
         {
             var entity = _mapper.Map<TEntity>(dto);
             await _repository.UpdateAsync(entity);
             await _repository.SaveChangesAsync();
+
+            // Güncelleme sonrası ilgili cache'i temizleyelim.
+            var idProperty = typeof(TEntity).GetProperty("Id");
+            if (idProperty != null && idProperty.GetValue(entity) is Guid id)
+            {
+                await _cacheService.RemoveAsync(GetCacheKeyForItem(id));
+            }
+            await _cacheService.RemoveAsync(GetCacheKeyForList());
             return true;
         }
 
-        public async Task<bool> DeleteAsync(Guid id)
+        public async virtual Task<bool> DeleteAsync(Guid id)
         {
             var entity = await _repository.GetByIdAsync(id);
             if (entity == null) return false;
             await _repository.DeleteAsync(entity);
             await _repository.SaveChangesAsync();
+
+            // Silme sonrası ilgili cache'leri temizle.
+            await _cacheService.RemoveAsync(GetCacheKeyForItem(id));
+            await _cacheService.RemoveAsync(GetCacheKeyForList());
             return true;
         }
     }
-
 }

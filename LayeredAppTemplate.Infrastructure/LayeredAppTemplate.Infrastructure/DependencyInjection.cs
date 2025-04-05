@@ -2,6 +2,7 @@
 using LayeredAppTemplate.Application.Common.Interfaces;
 using LayeredAppTemplate.Application.Interfaces;
 using LayeredAppTemplate.Application.Services;
+using LayeredAppTemplate.Infrastructure.Caching;
 using LayeredAppTemplate.Persistence;
 using LayeredAppTemplate.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -25,6 +26,9 @@ namespace LayeredAppTemplate.Infrastructure
 
             // AutoMapper
             services.AddAutoMapper(typeof(MappingProfile));
+
+            services.AddMemoryCache();
+            services.AddSingleton<ICacheService, MemoryCacheService>();
 
             return services;
         }

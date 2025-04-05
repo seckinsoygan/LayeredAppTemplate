@@ -8,8 +8,8 @@ namespace LayeredAppTemplate.Application.Services
 {
     public class UserService : GenericService<UserDto, User, CreateUserDto, UpdateUserDto>, IUserService
     {
-        public UserService(IRepository<User> repository, IMapper mapper)
-            : base(repository, mapper) { }
+        public UserService(IRepository<User> repository, IMapper mapper, ICacheService cacheService)
+            : base(repository, mapper, cacheService) { }
 
         public async Task<List<UserDto>> GetByEmailDomainAsync(string domain)
         {
