@@ -1,3 +1,4 @@
+using AspNetCoreRateLimit;
 using FluentValidation.AspNetCore;
 using LayeredAppTemplate.API.Configuration;
 using LayeredAppTemplate.API.Middlewares;
@@ -127,9 +128,20 @@ builder.Services.AddControllers()
     .AddFluentValidation(fv => fv.RegisterValidatorsFromAssemblyContaining<CreateUserDtoValidator>());
 builder.Services.AddEndpointsApiExplorer();
 
+// ------------------------------------------
+// Rate Limiting Configuration
+// ------------------------------------------
+builder.Services.AddMemoryCache();
+builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
+builder.Services.Configure<IpRateLimitPolicies>(builder.Configuration.GetSection("IpRateLimitPolicies"));
+builder.Services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
+builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounterStore>();
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
+
 var app = builder.Build();
 
-// Global Exception Handling middleware (tüm hatalarý merkezi yakalamak için)
+// Global Exception Handling middleware
 app.UseGlobalExceptionHandler();
 
 // Veritabaný baðlantýsýný kontrol et
@@ -152,6 +164,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Rate Limiting middleware ekle
+app.UseIpRateLimiting();
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
