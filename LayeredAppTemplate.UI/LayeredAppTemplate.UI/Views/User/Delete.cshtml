@@ -1,0 +1,11 @@
+﻿@model LayeredAppTemplate.UI.Models.UserViewModel
+
+<h2>Bu kullanıcıyı silmek istediğinizden emin misiniz?</h2>
+
+<form asp-action="Delete" method="post">
+    <input type="hidden" name="id" value="@Model.Id" />
+    <p>Ad Soyad: @Model.FullName</p>
+    <p>Email: @Model.Email</p>
+    <button type="submit" class="btn btn-danger">Sil</button>
+    <a href="@Url.Action("Index", "User")" class="btn btn-secondary">İptal</a>
+</form>
