@@ -9,6 +9,9 @@ namespace LayeredAppTemplate.Application
         public MappingProfile()
         {
             CreateMap<User, UserDto>().ReverseMap();
+            CreateMap<User, CreateUserDto>().ReverseMap();
+            CreateMap<User, UpdateUserDto>().ReverseMap();
+
 
             // Yeni entity'leri buraya eklersin:
             // CreateMap<Product, ProductDto>().ReverseMap();

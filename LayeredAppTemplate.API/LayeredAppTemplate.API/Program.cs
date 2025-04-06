@@ -2,6 +2,7 @@ using AspNetCoreRateLimit;
 using FluentValidation.AspNetCore;
 using LayeredAppTemplate.API.Configuration;
 using LayeredAppTemplate.API.Middlewares;
+using LayeredAppTemplate.Application.Common.Interfaces;
 using LayeredAppTemplate.Application.DTOs;
 using LayeredAppTemplate.Application.Validators.UserValidators;
 using LayeredAppTemplate.Infrastructure;
@@ -79,7 +80,7 @@ builder.Services.AddTransient<IConfigureOptions<SwaggerGenOptions>, ConfigureSwa
 // ------------------------------------------
 Log.Logger = new LoggerConfiguration()
     .Enrich.FromLogContext()
-    .MinimumLevel.Debug()
+    .MinimumLevel.Error()
     .WriteTo.Console()
     .WriteTo.File(
          "logs/log.txt",
@@ -121,6 +122,7 @@ builder.Services.AddAuthentication(options =>
 // ------------------------------------------
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddApplicationDependencies(connectionString);
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // ------------------------------------------
 // Controllers and FluentValidation
